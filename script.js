@@ -20,9 +20,12 @@
         let score, lives, gameOver;
         let keys = {};
         let enemySpawnTimer, powerUpSpawnTimer, animationFrameId;
+        let gameTime = 0; // Waktu permainan dalam detik
+        let difficultyMultiplier = 1; // Multiplier untuk kesulitan
         const ENEMY_SPAWN_INTERVAL = 1000;
         const POWERUP_SPAWN_INTERVAL = 15000; // Power-up muncul setiap 15 detik
         const POWERUP_DURATION = 5000; // Durasi power-up 5 detik
+        const DIFFICULTY_INCREASE_INTERVAL = 10000; // Peningkatan kesulitan setiap 10 detik
 
         // --- Efek Suara (Tone.js) ---
         const shootSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }, volume: -15 }).toDestination();
@@ -34,7 +37,15 @@
         // --- Fungsi Pembuatan Objek ---
         const createPlayer = () => ({ x: canvas.width / 2 - 25, y: canvas.height - 70, width: 50, height: 50, speed: 7, color: '#0ff', isPoweredUp: false, powerUpTimer: 0 });
         const createBullet = (x, y, angle = 0) => ({ x, y, width: 6, height: 20, speed: 12, color: '#ff0', vx: Math.sin(angle) * 12, vy: -Math.cos(angle) * 12 });
-        const createEnemy = () => ({ x: Math.random() * (canvas.width - 40), y: -50, width: 45, height: 45, speed: Math.random() * 2.5 + 2, color: `hsl(${Math.random() * 60 + 280}, 100%, 60%)`, shapePoints: Array.from({length: 8}, () => ({x: Math.random() * 45, y: Math.random() * 45})) });
+        const createEnemy = () => ({ 
+            x: Math.random() * (canvas.width - 40), 
+            y: -50, 
+            width: 45, 
+            height: 45, 
+            speed: (Math.random() * 2.5 + 2) * difficultyMultiplier, 
+            color: `hsl(${Math.random() * 60 + 280}, 100%, 60%)`, 
+            shapePoints: Array.from({length: 8}, () => ({x: Math.random() * 45, y: Math.random() * 45})) 
+        });
         const createStars = () => Array.from({ length: 300 }, () => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.5, alpha: Math.random() * 0.5 + 0.2, speed: Math.random() * 0.5 + 0.1 }));
         const createExplosion = (x, y, color) => { for (let i = 0; i < 25; i++) { particles.push({ x, y, vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7, radius: Math.random() * 3 + 1, color, lifespan: 60 }); } };
         // PENAMBAHAN: Planet
@@ -69,11 +80,20 @@
         // --- Fungsi Update State ---
         const updatePlayer = () => { if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed; if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed; if (player.isPoweredUp) { player.powerUpTimer -= 1000/60; if(player.powerUpTimer <= 0) player.isPoweredUp = false; } };
         const updateBullets = () => { for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; b.x += b.vx; b.y += b.vy; if (b.y < 0 || b.x < 0 || b.x > canvas.width) bullets.splice(i, 1); } };
-        const updateEnemies = () => { for (let i = enemies.length - 1; i >= 0; i--) { const enemy = enemies[i]; enemy.y += enemy.speed; if (enemy.y > canvas.height) enemies.splice(i, 1); } };
+        const updateEnemies = () => { for (let i = enemies.length - 1; i >= 0; i--) { const enemy = enemies[i]; enemy.y += enemy.speed * difficultyMultiplier; if (enemy.y > canvas.height) enemies.splice(i, 1); } };
         const updateParticles = () => { for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx; p.y += p.vy; p.lifespan--; if (p.lifespan <= 0) particles.splice(i, 1); } };
         const updateStars = () => { stars.forEach(star => { star.y += star.speed; if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; } }); };
         const updatePlanets = () => { planets.forEach(p => { p.y += p.speed; if (p.y - p.radius > canvas.height) { Object.assign(p, createPlanet()); p.y = -p.radius * 2; } }); };
         const updatePowerUps = () => { for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].y += powerUps[i].speed; if (powerUps[i].y > canvas.height) powerUps.splice(i, 1); } };
+
+        // --- Fungsi Update Difficulty ---
+        const updateDifficulty = () => {
+            gameTime += 1/60; // Increment waktu setiap frame (60 FPS)
+            if (gameTime % (DIFFICULTY_INCREASE_INTERVAL / 1000) < 1/60) {
+                difficultyMultiplier += 0.1; // Peningkatan kesulitan setiap 10 detik
+                console.log(`Difficulty increased! Multiplier: ${difficultyMultiplier.toFixed(1)}`);
+            }
+        };
 
         // --- Deteksi Tumbukan ---
         function checkCollisions() {
@@ -88,14 +108,38 @@
         // --- Manajemen Game ---
         const updateUI = () => { scoreEl.textContent = `SKOR: ${score}`; livesEl.textContent = `NYAWA: ${lives}`; };
         function handleGameOver() { gameOver = true; finalScoreEl.textContent = `SKOR AKHIR: ${score}`; gameOverScreen.classList.remove('hidden'); gameOverSound(); }
-        function prepareGame() { player = createPlayer(); bullets = []; enemies = []; particles = []; planets = [createPlanet(), createPlanet()]; powerUps = []; score = 0; lives = 3; gameOver = false; keys = {}; if (enemySpawnTimer) clearInterval(enemySpawnTimer); if(powerUpSpawnTimer) clearInterval(powerUpSpawnTimer); if (animationFrameId) cancelAnimationFrame(animationFrameId); updateUI(); }
-        function startGame() { prepareGame(); startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden'); enemySpawnTimer = setInterval(() => enemies.push(createEnemy()), ENEMY_SPAWN_INTERVAL); powerUpSpawnTimer = setInterval(() => powerUps.push(createPowerUp()), POWERUP_SPAWN_INTERVAL); gameLoop(); }
+        function prepareGame() { 
+            player = createPlayer(); 
+            bullets = []; 
+            enemies = []; 
+            particles = []; 
+            planets = [createPlanet(), createPlanet()]; 
+            powerUps = []; 
+            score = 0; 
+            lives = 3; 
+            gameOver = false; 
+            keys = {}; 
+            gameTime = 0; // Reset waktu permainan
+            difficultyMultiplier = 1; // Reset kesulitan
+            if (enemySpawnTimer) clearInterval(enemySpawnTimer); 
+            if(powerUpSpawnTimer) clearInterval(powerUpSpawnTimer); 
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); 
+            updateUI(); 
+        }
+        function startGame() { 
+            prepareGame(); 
+            startScreen.classList.add('hidden'); 
+            gameOverScreen.classList.add('hidden'); 
+            enemySpawnTimer = setInterval(() => enemies.push(createEnemy()), ENEMY_SPAWN_INTERVAL); 
+            powerUpSpawnTimer = setInterval(() => powerUps.push(createPowerUp()), POWERUP_SPAWN_INTERVAL); 
+            gameLoop(); 
+        }
 
         // --- Game Loop Utama ---
         function gameLoop() {
             if (gameOver) { clearInterval(enemySpawnTimer); clearInterval(powerUpSpawnTimer); return; }
             
-            updatePlayer(); updateBullets(); updateEnemies(); updateParticles(); updateStars(); updatePlanets(); updatePowerUps();
+            updatePlayer(); updateBullets(); updateEnemies(); updateParticles(); updateStars(); updatePlanets(); updatePowerUps(); updateDifficulty();
             checkCollisions();
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
