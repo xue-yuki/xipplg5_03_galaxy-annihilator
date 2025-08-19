@@ -1,4 +1,4 @@
- body {
+body {
             background-color: #000;
             color: #fff;
             font-family: 'Press Start 2P', cursive;
@@ -12,8 +12,6 @@
         }
         #gameContainer {
             position: relative;
-            width: 1920px;
-            height: 1080px;
             border: 3px solid #0ff;
             box-shadow: 0 0 20px #0ff, inset 0 0 10px #0ff;
             background-color: #020a18;
@@ -23,8 +21,6 @@
         }
         canvas {
             display: block;
-            width: 1920px;
-            height: 1080px;
             background-color: transparent;
         }
         .overlay {
