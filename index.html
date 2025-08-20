@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Tembak Pesawat Luar Angkasa v4</title>
+    <title>Game Tembak Pesawat Luar Angkasa v5</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -40,7 +40,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
+            background-color: rgba(0, 0, 0, 0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -48,6 +48,8 @@
             color: #fff;
             text-align: center;
             backdrop-filter: blur(5px);
+            padding: 20px;
+            box-sizing: border-box;
         }
         #uiContainer {
             position: absolute;
@@ -63,16 +65,6 @@
             pointer-events: none;
             color: #0ff;
         }
-        #gameOverScreen h2 {
-            font-size: 48px;
-            color: #f00;
-            margin-bottom: 20px;
-            text-shadow: 3px 3px 0 #fff;
-        }
-        #gameOverScreen p {
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
         .gameButton {
             font-family: 'Press Start 2P', cursive;
             font-size: 20px;
@@ -84,6 +76,7 @@
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 0 15px #0ff;
+            margin-top: 20px;
         }
         .gameButton:hover {
             background-color: #fff;
@@ -91,11 +84,60 @@
             transform: scale(1.05);
             box-shadow: 0 0 25px #fff;
         }
-        .hidden {
-            display: none;
+        .hidden { display: none; }
+
+        /* --- Leaderboard Styles --- */
+        #leaderboardContainer {
+            width: 80%;
+            max-width: 400px;
+            margin-top: 20px;
         }
+        #leaderboardContainer h3 {
+            color: #ff0;
+            font-size: 22px;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 0 #f00;
+        }
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+            text-align: left;
+            height: 200px;
+            overflow-y: auto;
+        }
+        #leaderboardList li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        #leaderboardList li:nth-child(odd) {
+            background-color: rgba(0, 255, 255, 0.1);
+        }
+        #leaderboardList .rank { width: 15%; }
+        #leaderboardList .name { width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #leaderboardList .score { width: 30%; text-align: right; }
+
+        /* --- Game Over Form Styles --- */
+        #gameOverScreen h2 { font-size: 48px; color: #f00; margin-bottom: 10px; text-shadow: 3px 3px 0 #fff; }
+        #gameOverScreen p { font-size: 24px; margin-bottom: 20px; }
+        #saveScoreForm { display: flex; flex-direction: column; align-items: center; margin-top: 15px; }
+        #playerNameInput {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            padding: 10px;
+            width: 250px;
+            text-align: center;
+            background-color: #333;
+            border: 2px solid #0ff;
+            color: #fff;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        #saveScoreButton { font-size: 16px; padding: 10px 20px; }
     </style>
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -109,41 +151,45 @@
             <span id="lives">NYAWA: 3</span>
         </div>
         <div id="startScreen" class="overlay">
+            <div id="leaderboardContainer">
+                <h3>SKOR TERTINGGI</h3>
+                <ol id="leaderboardList"></ol>
+            </div>
             <button id="startButton" class="gameButton">MULAI MISI</button>
         </div>
         <div id="gameOverScreen" class="overlay hidden">
             <h2>MISI GAGAL</h2>
             <p id="finalScore">SKOR AKHIR: 0</p>
+            <div id="saveScoreForm" class="hidden">
+                <input type="text" id="playerNameInput" placeholder="MASUKKAN NAMA" maxlength="10">
+                <button id="saveScoreButton" class="gameButton">SIMPAN SKOR</button>
+            </div>
             <button id="restartButton" class="gameButton">COBA LAGI</button>
         </div>
     </div>
 
     <script>
         // --- Inisialisasi Elemen ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('score');
-        const livesEl = document.getElementById('lives');
-        const startScreen = document.getElementById('startScreen');
-        const gameOverScreen = document.getElementById('gameOverScreen');
-        const finalScoreEl = document.getElementById('finalScore');
-        const startButton = document.getElementById('startButton');
+        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score'); const livesEl = document.getElementById('lives');
+        const startScreen = document.getElementById('startScreen'); const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreEl = document.getElementById('finalScore'); const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const saveScoreForm = document.getElementById('saveScoreForm');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const saveScoreButton = document.getElementById('saveScoreButton');
 
         // --- Konfigurasi Canvas ---
-        const gameWidth = Math.min(800, window.innerWidth - 40);
-        const gameHeight = 600;
-        canvas.width = gameWidth;
-        canvas.height = gameHeight;
+        const gameWidth = Math.min(800, window.innerWidth - 40); const gameHeight = 600;
+        canvas.width = gameWidth; canvas.height = gameHeight;
 
         // --- Variabel State Game ---
         let player, bullets, enemies, stars, particles, planets, powerUps;
         let score, lives, gameOver;
         let keys = {};
         let enemySpawnTimer, powerUpSpawnTimer, animationFrameId;
-        const ENEMY_SPAWN_INTERVAL = 1000;
-        const POWERUP_SPAWN_INTERVAL = 15000; // Power-up muncul setiap 15 detik
-        const POWERUP_DURATION = 5000; // Durasi power-up 5 detik
+        const ENEMY_SPAWN_INTERVAL = 1000; const POWERUP_SPAWN_INTERVAL = 15000; const POWERUP_DURATION = 5000;
 
         // --- Efek Suara (Tone.js) ---
         const shootSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }, volume: -15 }).toDestination();
@@ -158,36 +204,19 @@
         const createEnemy = () => ({ x: Math.random() * (canvas.width - 40), y: -50, width: 45, height: 45, speed: Math.random() * 2.5 + 2, color: `hsl(${Math.random() * 60 + 280}, 100%, 60%)`, shapePoints: Array.from({length: 8}, () => ({x: Math.random() * 45, y: Math.random() * 45})) });
         const createStars = () => Array.from({ length: 300 }, () => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.5, alpha: Math.random() * 0.5 + 0.2, speed: Math.random() * 0.5 + 0.1 }));
         const createExplosion = (x, y, color) => { for (let i = 0; i < 25; i++) { particles.push({ x, y, vx: (Math.random() - 0.5) * 7, vy: (Math.random() - 0.5) * 7, radius: Math.random() * 3 + 1, color, lifespan: 60 }); } };
-        // PENAMBAHAN: Planet
         const createPlanet = () => ({ x: Math.random() * canvas.width, y: -200, radius: Math.random() * 80 + 40, color1: `hsl(${Math.random() * 360}, 60%, 40%)`, color2: `hsl(${Math.random() * 360}, 60%, 20%)`, speed: Math.random() * 0.4 + 0.2 });
-        // PENAMBAHAN: Power-up
         const createPowerUp = () => ({ x: Math.random() * (canvas.width - 30), y: -30, size: 15, speed: 2, color: '#0f0' });
 
-        // --- Fungsi Menggambar ---
-        const drawPlayer = () => {
-            const p = player;
-            const powerUpColor = 'rgba(255, 223, 0, 0.9)';
-            ctx.save();
-            // Efek pendorong
-            const thrusterHeight = Math.random() * 20 + 15;
-            ctx.fillStyle = p.isPoweredUp ? powerUpColor : `rgba(255, 180, 0, ${Math.random() * 0.5 + 0.5})`;
-            ctx.shadowColor = p.isPoweredUp ? powerUpColor : '#ff0';
-            ctx.shadowBlur = 20;
-            ctx.beginPath(); ctx.moveTo(p.x + p.width * 0.3, p.y + p.height * 0.8); ctx.lineTo(p.x + p.width * 0.7, p.y + p.height * 0.8); ctx.lineTo(p.x + p.width / 2, p.y + p.height * 0.8 + thrusterHeight); ctx.closePath(); ctx.fill();
-            // Badan pesawat
-            ctx.fillStyle = '#ccc'; ctx.shadowColor = p.color; ctx.shadowBlur = 15; ctx.beginPath(); ctx.moveTo(p.x + p.width / 2, p.y); ctx.lineTo(p.x, p.y + p.height * 0.8); ctx.lineTo(p.x + p.width, p.y + p.height * 0.8); ctx.closePath(); ctx.fill();
-            // Kokpit
-            ctx.fillStyle = p.isPoweredUp ? powerUpColor : p.color; ctx.beginPath(); ctx.arc(p.x + p.width / 2, p.y + p.height * 0.4, p.width * 0.15, 0, Math.PI * 2); ctx.fill();
-            ctx.restore();
-        };
+        // --- Fungsi Menggambar (Tidak ada perubahan signifikan) ---
+        const drawPlayer = () => { const p = player; const powerUpColor = 'rgba(255, 223, 0, 0.9)'; ctx.save(); const thrusterHeight = Math.random() * 20 + 15; ctx.fillStyle = p.isPoweredUp ? powerUpColor : `rgba(255, 180, 0, ${Math.random() * 0.5 + 0.5})`; ctx.shadowColor = p.isPoweredUp ? powerUpColor : '#ff0'; ctx.shadowBlur = 20; ctx.beginPath(); ctx.moveTo(p.x + p.width * 0.3, p.y + p.height * 0.8); ctx.lineTo(p.x + p.width * 0.7, p.y + p.height * 0.8); ctx.lineTo(p.x + p.width / 2, p.y + p.height * 0.8 + thrusterHeight); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#ccc'; ctx.shadowColor = p.color; ctx.shadowBlur = 15; ctx.beginPath(); ctx.moveTo(p.x + p.width / 2, p.y); ctx.lineTo(p.x, p.y + p.height * 0.8); ctx.lineTo(p.x + p.width, p.y + p.height * 0.8); ctx.closePath(); ctx.fill(); ctx.fillStyle = p.isPoweredUp ? powerUpColor : p.color; ctx.beginPath(); ctx.arc(p.x + p.width / 2, p.y + p.height * 0.4, p.width * 0.15, 0, Math.PI * 2); ctx.fill(); ctx.restore(); };
         const drawBullet = (b) => { ctx.save(); ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 20; ctx.fillRect(b.x, b.y, b.width, b.height); ctx.fillStyle = 'white'; ctx.fillRect(b.x + b.width/2 - 1, b.y, 2, b.height/2); ctx.restore(); };
         const drawEnemy = (e) => { ctx.save(); ctx.fillStyle = e.color; ctx.shadowColor = e.color; ctx.shadowBlur = 20; ctx.beginPath(); ctx.moveTo(e.x + e.shapePoints[0].x, e.y + e.shapePoints[0].y); for(let i = 1; i < e.shapePoints.length; i++) { ctx.lineTo(e.x + e.shapePoints[i].x, e.y + e.shapePoints[i].y); } ctx.closePath(); ctx.fill(); ctx.restore(); };
         const drawStars = () => { stars.forEach(star => { ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`; ctx.beginPath(); ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); ctx.fill(); }); };
         const drawParticles = () => { particles.forEach(p => { ctx.save(); ctx.globalAlpha = Math.max(0, p.lifespan / 60); ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); ctx.restore(); }); };
         const drawPlanets = () => { planets.forEach(p => { ctx.save(); const grad = ctx.createRadialGradient(p.x, p.y, p.radius * 0.1, p.x, p.y, p.radius); grad.addColorStop(0, p.color1); grad.addColorStop(1, p.color2); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }); };
-        const drawPowerUps = () => { powerUps.forEach(p => { ctx.save(); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 20; const angle = Date.now() / 200; for(let i=0; i<5; i++){ ctx.lineTo(p.x + p.size * Math.cos(angle + i*2*Math.PI/5), p.y + p.size * Math.sin(angle + i*2*Math.PI/5)); } ctx.closePath(); ctx.fill(); ctx.restore(); }); };
+        const drawPowerUps = () => { powerUps.forEach(p => { ctx.save(); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 20; const angle = Date.now() / 200; ctx.beginPath(); for(let i=0; i<5; i++){ ctx.lineTo(p.x + p.size * Math.cos(angle + i*2*Math.PI/5), p.y + p.size * Math.sin(angle + i*2*Math.PI/5)); } ctx.closePath(); ctx.fill(); ctx.restore(); }); };
 
-        // --- Fungsi Update State ---
+        // --- Fungsi Update State (Tidak ada perubahan signifikan) ---
         const updatePlayer = () => { if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed; if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed; if (player.isPoweredUp) { player.powerUpTimer -= 1000/60; if(player.powerUpTimer <= 0) player.isPoweredUp = false; } };
         const updateBullets = () => { for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; b.x += b.vx; b.y += b.vy; if (b.y < 0 || b.x < 0 || b.x > canvas.width) bullets.splice(i, 1); } };
         const updateEnemies = () => { for (let i = enemies.length - 1; i >= 0; i--) { const enemy = enemies[i]; enemy.y += enemy.speed; if (enemy.y > canvas.height) enemies.splice(i, 1); } };
@@ -196,62 +225,82 @@
         const updatePlanets = () => { planets.forEach(p => { p.y += p.speed; if (p.y - p.radius > canvas.height) { Object.assign(p, createPlanet()); p.y = -p.radius * 2; } }); };
         const updatePowerUps = () => { for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].y += powerUps[i].speed; if (powerUps[i].y > canvas.height) powerUps.splice(i, 1); } };
 
-        // --- Deteksi Tumbukan ---
+        // --- Deteksi Tumbukan (Tidak ada perubahan signifikan) ---
         function checkCollisions() {
-            // Peluru vs Musuh
             for (let i = bullets.length - 1; i >= 0; i--) { for (let j = enemies.length - 1; j >= 0; j--) { const b = bullets[i], e = enemies[j]; if (b && e && b.x < e.x + e.width && b.x + b.width > e.x && b.y < e.y + e.height && b.y + b.height > e.y) { explosionSound.triggerAttackRelease("0.2n"); createExplosion(e.x + e.width / 2, e.y + e.height / 2, e.color); bullets.splice(i, 1); enemies.splice(j, 1); score += 10; break; } } }
-            // Pemain vs Musuh
             for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (player.x < e.x + e.width && player.x + player.width > e.x && player.y < e.y + e.height && player.y + player.height > e.y) { playerHitSound.triggerAttackRelease("0.3n"); createExplosion(player.x + player.width / 2, player.y + player.height / 2, player.color); enemies.splice(i, 1); lives--; } }
-            // Pemain vs Power-up
             for (let i = powerUps.length - 1; i >= 0; i--) { const p = powerUps[i]; if (player.x < p.x + p.size && player.x + player.width > p.x && player.y < p.y + p.size && player.y + player.height > p.y) { powerUpSound.triggerAttackRelease("C4", "4n"); player.isPoweredUp = true; player.powerUpTimer = POWERUP_DURATION; powerUps.splice(i, 1); } }
         }
 
+        // --- PENAMBAHAN: Fungsi Leaderboard ---
+        const getLeaderboard = () => JSON.parse(localStorage.getItem('galaxyAnnihilatorLeaderboard')) || [];
+        const saveScore = (name, score) => {
+            const leaderboard = getLeaderboard();
+            leaderboard.push({ name, score });
+            leaderboard.sort((a, b) => b.score - a.score);
+            localStorage.setItem('galaxyAnnihilatorLeaderboard', JSON.stringify(leaderboard.slice(0, 10)));
+        };
+        const displayLeaderboard = () => {
+            const leaderboard = getLeaderboard();
+            leaderboardList.innerHTML = '';
+            if (leaderboard.length === 0) {
+                leaderboardList.innerHTML = '<li>Belum ada skor...</li>';
+            } else {
+                leaderboard.forEach((entry, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${entry.name}</span><span class="score">${entry.score}</span>`;
+                    leaderboardList.appendChild(li);
+                });
+            }
+        };
+
         // --- Manajemen Game ---
         const updateUI = () => { scoreEl.textContent = `SKOR: ${score}`; livesEl.textContent = `NYAWA: ${lives}`; };
-        function handleGameOver() { gameOver = true; finalScoreEl.textContent = `SKOR AKHIR: ${score}`; gameOverScreen.classList.remove('hidden'); gameOverSound(); }
+        function handleGameOver() {
+            gameOver = true;
+            finalScoreEl.textContent = `SKOR AKHIR: ${score}`;
+            gameOverScreen.classList.remove('hidden');
+            const leaderboard = getLeaderboard();
+            // Tampilkan form input nama jika skor cukup tinggi atau leaderboard belum penuh
+            if (score > 0 && (leaderboard.length < 10 || score > leaderboard[leaderboard.length - 1].score)) {
+                saveScoreForm.classList.remove('hidden');
+            }
+            gameOverSound();
+        }
         function prepareGame() { player = createPlayer(); bullets = []; enemies = []; particles = []; planets = [createPlanet(), createPlanet()]; powerUps = []; score = 0; lives = 3; gameOver = false; keys = {}; if (enemySpawnTimer) clearInterval(enemySpawnTimer); if(powerUpSpawnTimer) clearInterval(powerUpSpawnTimer); if (animationFrameId) cancelAnimationFrame(animationFrameId); updateUI(); }
-        function startGame() { prepareGame(); startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden'); enemySpawnTimer = setInterval(() => enemies.push(createEnemy()), ENEMY_SPAWN_INTERVAL); powerUpSpawnTimer = setInterval(() => powerUps.push(createPowerUp()), POWERUP_SPAWN_INTERVAL); gameLoop(); }
+        function startGame() { prepareGame(); startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden'); saveScoreForm.classList.add('hidden'); enemySpawnTimer = setInterval(() => enemies.push(createEnemy()), ENEMY_SPAWN_INTERVAL); powerUpSpawnTimer = setInterval(() => powerUps.push(createPowerUp()), POWERUP_SPAWN_INTERVAL); gameLoop(); }
 
         // --- Game Loop Utama ---
         function gameLoop() {
             if (gameOver) { clearInterval(enemySpawnTimer); clearInterval(powerUpSpawnTimer); return; }
-            
             updatePlayer(); updateBullets(); updateEnemies(); updateParticles(); updateStars(); updatePlanets(); updatePowerUps();
             checkCollisions();
-            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawStars(); drawPlanets();
-            drawPlayer();
+            drawStars(); drawPlanets(); drawPlayer();
             bullets.forEach(drawBullet); enemies.forEach(drawEnemy); particles.forEach(drawParticles); powerUps.forEach(drawPowerUps);
-            
             updateUI();
             if (lives <= 0) handleGameOver();
-            
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         // --- Event Listeners ---
-        window.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
-            if (e.code === 'Space' && !gameOver && !keys.spacePressed) {
-                shootSound.triggerAttackRelease("C5", "32n");
-                if (player.isPoweredUp) {
-                    bullets.push(createBullet(player.x + player.width / 2 - 3, player.y, 0)); // Tengah
-                    bullets.push(createBullet(player.x + player.width / 2 - 3, player.y, -0.2)); // Kiri
-                    bullets.push(createBullet(player.x + player.width / 2 - 3, player.y, 0.2)); // Kanan
-                } else {
-                    bullets.push(createBullet(player.x + player.width / 2 - 3, player.y));
-                }
-                keys.spacePressed = true;
-            }
-        });
+        window.addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space' && !gameOver && !keys.spacePressed) { shootSound.triggerAttackRelease("C5", "32n"); if (player.isPoweredUp) { bullets.push(createBullet(player.x + player.width / 2 - 3, player.y, 0)); bullets.push(createBullet(player.x + player.width / 2 - 3, player.y, -0.2)); bullets.push(createBullet(player.x + player.width / 2 - 3, player.y, 0.2)); } else { bullets.push(createBullet(player.x + player.width / 2 - 3, player.y)); } keys.spacePressed = true; } });
         window.addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Space') keys.spacePressed = false; });
         startButton.addEventListener('click', () => { if (Tone.context.state !== 'running') Tone.start(); startGame(); });
-        restartButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', () => {
+             startScreen.classList.remove('hidden');
+             gameOverScreen.classList.add('hidden');
+             displayLeaderboard();
+        });
+        saveScoreButton.addEventListener('click', () => {
+            const name = playerNameInput.value.trim() || 'ANONIM';
+            saveScore(name, score);
+            saveScoreForm.classList.add('hidden');
+            playerNameInput.value = '';
+        });
         
         // --- Inisialisasi Awal ---
-        window.onload = () => { stars = createStars(); prepareGame(); ctx.clearRect(0, 0, canvas.width, canvas.height); drawStars(); drawPlanets(); drawPlayer(); startScreen.classList.remove('hidden'); };
+        window.onload = () => { stars = createStars(); prepareGame(); ctx.clearRect(0, 0, canvas.width, canvas.height); drawStars(); drawPlanets(); drawPlayer(); startScreen.classList.remove('hidden'); displayLeaderboard(); };
     </script>
-    <script src="script.js"></script>
 </body>
 </html>
