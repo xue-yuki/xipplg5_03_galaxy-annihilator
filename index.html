@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Tembak Pesawat Luar Angkasa v8</title>
+    <title>Game Tembak Pesawat Luar Angkasa v10</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -58,7 +58,7 @@
             box-sizing: border-box;
             transition: opacity 0.5s ease-in-out;
         }
-        #startScreen {
+        #startScreen, #leaderboardScreen {
             justify-content: center;
         }
         .gameTitle {
@@ -77,6 +77,9 @@
         }
         .lobby-elements {
             transition: opacity 0.5s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         #uiContainer {
             position: absolute;
@@ -104,6 +107,13 @@
             box-shadow: 0 0 15px #0ff;
             margin-top: 20px;
         }
+        .gameButton.secondary {
+            background-color: transparent;
+            color: #0ff;
+            border-color: #0ff;
+            font-size: 16px;
+            padding: 10px 20px;
+        }
         .gameButton:hover {
             background-color: #fff;
             color: #0ff;
@@ -112,14 +122,32 @@
         }
         .hidden { display: none; }
         .transparent { opacity: 0; pointer-events: none; }
-        #leaderboardContainer { width: 80%; max-width: 400px; }
-        #leaderboardContainer h3 { color: #ff0; font-size: 22px; margin-bottom: 15px; text-shadow: 2px 2px 0 #f00; }
-        #leaderboardList { list-style: none; padding: 0; margin: 0; font-size: 14px; text-align: left; height: 180px; overflow-y: auto; }
-        #leaderboardList li { display: flex; justify-content: space-between; padding: 5px 10px; border-radius: 4px; }
-        #leaderboardList li:nth-child(odd) { background-color: rgba(0, 255, 255, 0.1); }
-        #leaderboardList .rank { width: 15%; }
+        #leaderboardContainer { width: 80%; max-width: 450px; }
+        #leaderboardContainer h2 { color: #ff0; font-size: 32px; margin-bottom: 25px; text-shadow: 2px 2px 0 #f00; }
+        #leaderboardList { list-style: none; padding: 0; margin: 0; font-size: 16px; text-align: left; height: 300px; overflow-y: auto; padding-right: 10px; }
+        #leaderboardList li { display: flex; justify-content: space-between; padding: 8px 15px; border-radius: 4px; border-bottom: 1px solid rgba(0, 255, 255, 0.2); }
+        #leaderboardList li:first-child { color: #ff0; font-weight: bold; }
+        #leaderboardList li:nth-child(2) { color: #c0c0c0; }
+        #leaderboardList li:nth-child(3) { color: #cd7f32; }
+        #leaderboardList .rank { width: 15%; color: #0ff; }
         #leaderboardList .name { width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #leaderboardList .score { width: 30%; text-align: right; }
+        
+        /* --- Scrollbar Kustom --- */
+        #leaderboardList::-webkit-scrollbar {
+            width: 8px;
+        }
+        #leaderboardList::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        #leaderboardList::-webkit-scrollbar-thumb {
+            background-color: #0ff;
+            border-radius: 4px;
+            border: 1px solid #fff;
+            box-shadow: 0 0 10px #0ff;
+        }
+        
         #gameOverScreen { justify-content: center; }
         #gameOverScreen h2 { font-size: 48px; color: #f00; margin-bottom: 10px; text-shadow: 3px 3px 0 #fff; }
         #gameOverScreen p { font-size: 24px; margin-bottom: 20px; }
@@ -141,12 +169,16 @@
                 <p class="pulsing-text">TEKAN SPASI UNTUK MULAI</p>
             </div>
             <div id="lobbyContent" class="lobby-elements transparent">
-                 <div id="leaderboardContainer">
-                    <h3>SKOR TERTINGGI</h3>
-                    <ol id="leaderboardList"></ol>
-                </div>
                 <button id="startButton" class="gameButton">MULAI MISI</button>
+                <button id="leaderboardButton" class="gameButton secondary">PAPAN SKOR</button>
             </div>
+        </div>
+        <div id="leaderboardScreen" class="overlay hidden">
+            <div id="leaderboardContainer">
+                <h2>SKOR TERTINGGI</h2>
+                <ol id="leaderboardList"></ol>
+            </div>
+            <button id="backToLobbyButton" class="gameButton">KEMBALI</button>
         </div>
         <div id="gameOverScreen" class="overlay hidden">
             <h2>MISI GAGAL</h2>
@@ -164,8 +196,11 @@
         const uiContainer = document.getElementById('uiContainer');
         const scoreEl = document.getElementById('score'); const livesEl = document.getElementById('lives');
         const startScreen = document.getElementById('startScreen'); const gameOverScreen = document.getElementById('gameOverScreen');
+        const leaderboardScreen = document.getElementById('leaderboardScreen');
         const initialMessage = document.getElementById('initialMessage'); const lobbyContent = document.getElementById('lobbyContent');
         const finalScoreEl = document.getElementById('finalScore'); const startButton = document.getElementById('startButton');
+        const leaderboardButton = document.getElementById('leaderboardButton');
+        const backToLobbyButton = document.getElementById('backToLobbyButton');
         const restartButton = document.getElementById('restartButton');
         const leaderboardList = document.getElementById('leaderboardList');
         const saveScoreForm = document.getElementById('saveScoreForm');
@@ -180,8 +215,8 @@
         let keys = {};
         let enemySpawnTimer, powerUpSpawnTimer, gameLoopId, menuLoopId;
         let gameState = 'initial';
-        const POWERUP_DURATION = 5000; // 5 detik durasi triple shot
-        const FASTGUN_DURATION = 8000; // 8 detik durasi fast gun
+        const POWERUP_DURATION = 5000;
+        const FASTGUN_DURATION = 8000;
         
         const shootSound = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }, volume: -15 }).toDestination();
         const explosionSound = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 }, volume: -10 }).toDestination();
@@ -278,12 +313,24 @@
             menuSelectSound.triggerAttackRelease("C4", "8n");
             startGame(); 
         });
+
+        leaderboardButton.addEventListener('click', () => {
+            menuSelectSound.triggerAttackRelease("C4", "8n");
+            displayLeaderboard();
+            startScreen.classList.add('hidden');
+            leaderboardScreen.classList.remove('hidden');
+        });
+
+        backToLobbyButton.addEventListener('click', () => {
+            menuSelectSound.triggerAttackRelease("C3", "8n");
+            leaderboardScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        });
         
         restartButton.addEventListener('click', () => {
              gameState = 'lobby';
              gameOverScreen.classList.add('hidden');
              startScreen.classList.remove('hidden');
-             displayLeaderboard();
              menuLoop();
         });
 
@@ -291,14 +338,14 @@
             const name = playerNameInput.value.trim() || 'ANONIM';
             saveScore(name, score);
             saveScoreForm.classList.add('hidden');
-            playerNameInput.value = '';
+            // After saving, also update the main leaderboard view
+            displayLeaderboard();
         });
         
         window.onload = () => {
             stars = createStars();
             planets = [createPlanet(), createPlanet()];
             asteroids = [createAsteroid(), createAsteroid(), createAsteroid()];
-            displayLeaderboard();
             startScreen.classList.remove('hidden');
             menuLoop();
         };
