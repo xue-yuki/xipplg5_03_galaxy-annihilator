@@ -1,7 +1,7 @@
 body {
             background-color: #000;
             color: #fff;
-            font-family: 'Press Start 2P', cursive;
+            font-family: 'Press+Start+2P', cursive;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -18,6 +18,16 @@ body {
             border-radius: 10px;
             overflow: hidden;
             background: linear-gradient(to bottom, #010518, #0d1a3a);
+            cursor: crosshair;
+        }
+        #gameContainer::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 3px);
+            pointer-events: none;
+            z-index: 100;
         }
         canvas {
             display: block;
@@ -25,23 +35,45 @@ body {
         }
         .overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
             color: #fff;
             text-align: center;
             backdrop-filter: blur(5px);
+            padding: 20px;
+            box-sizing: border-box;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #startScreen, #leaderboardScreen {
+            justify-content: center;
+        }
+        .gameTitle {
+            font-size: 40px;
+            color: #0ff;
+            text-shadow: 3px 3px 0px #f0f, -3px -3px 0px #ff0;
+            margin: 0 0 10px 0;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .pulsing-text {
+            font-size: 20px;
+            animation: blink 1.5s infinite;
+        }
+        .lobby-elements {
+            transition: opacity 0.5s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         #uiContainer {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0; left: 0;
             width: 100%;
             padding: 15px;
             box-sizing: border-box;
@@ -52,18 +84,8 @@ body {
             pointer-events: none;
             color: #0ff;
         }
-        #gameOverScreen h2 {
-            font-size: 48px;
-            color: #f00;
-            margin-bottom: 20px;
-            text-shadow: 3px 3px 0 #fff;
-        }
-        #gameOverScreen p {
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
         .gameButton {
-            font-family: 'Press Start 2P', cursive;
+            font-family: 'Press+Start+2P', cursive;
             font-size: 20px;
             padding: 15px 30px;
             background-color: #0ff;
@@ -73,6 +95,14 @@ body {
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 0 15px #0ff;
+            margin-top: 20px;
+        }
+        .gameButton.secondary {
+            background-color: transparent;
+            color: #0ff;
+            border-color: #0ff;
+            font-size: 16px;
+            padding: 10px 20px;
         }
         .gameButton:hover {
             background-color: #fff;
@@ -80,6 +110,43 @@ body {
             transform: scale(1.05);
             box-shadow: 0 0 25px #fff;
         }
-        .hidden {
-            display: none;
+        /* Efek Pulse untuk tombol Mulai */
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 15px #0ff; }
+            50% { transform: scale(1.03); box-shadow: 0 0 25px #0ff, 0 0 10px #fff; }
+            100% { transform: scale(1); box-shadow: 0 0 15px #0ff; }
         }
+        #startButton {
+            animation: pulse 2s infinite ease-in-out;
+        }
+        .hidden { display: none; }
+        .transparent { opacity: 0; pointer-events: none; }
+        #leaderboardContainer { width: 80%; max-width: 450px; }
+        #leaderboardContainer h2 { color: #ff0; font-size: 32px; margin-bottom: 25px; text-shadow: 2px 2px 0 #f00; }
+        #leaderboardList { list-style: none; padding: 0; margin: 0; font-size: 16px; text-align: left; height: 300px; overflow-y: auto; padding-right: 10px; }
+        #leaderboardList li { display: flex; justify-content: space-between; padding: 8px 15px; border-radius: 4px; border-bottom: 1px solid rgba(0, 255, 255, 0.2); }
+        #leaderboardList li:first-child { color: #ff0; font-weight: bold; }
+        #leaderboardList li:nth-child(2) { color: #c0c0c0; }
+        #leaderboardList li:nth-child(3) { color: #cd7f32; }
+        #leaderboardList .rank { width: 15%; color: #0ff; }
+        #leaderboardList .name { width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #leaderboardList .score { width: 30%; text-align: right; }
+        
+        #leaderboardList::-webkit-scrollbar { width: 8px; }
+        #leaderboardList::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 4px; }
+        #leaderboardList::-webkit-scrollbar-thumb { background-color: #0ff; border-radius: 4px; border: 1px solid #fff; box-shadow: 0 0 10px #0ff; }
+        
+        #gameOverScreen { justify-content: center; }
+        #gameOverScreen h2 { font-size: 48px; color: #f00; margin-bottom: 10px; text-shadow: 3px 3px 0 #fff; }
+        #gameOverScreen p { font-size: 24px; margin-bottom: 20px; }
+        #saveScoreForm { display: flex; flex-direction: column; align-items: center; margin-top: 15px; }
+        #playerNameInput { font-family: 'Press+Start+2P', cursive; font-size: 16px; padding: 10px; width: 250px; text-align: center; background-color: #333; border: 2px solid #0ff; color: #fff; border-radius: 5px; margin-bottom: 15px; text-transform: uppercase; }
+        #saveScoreButton { font-size: 16px; padding: 10px 20px; }
+
+        #notification {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background-color: #0f0; color: #000; padding: 10px 20px; border-radius: 5px;
+            font-size: 14px; font-weight: bold; z-index: 200; opacity: 0;
+            transition: opacity 0.5s ease, transform 0.5s ease; pointer-events: none;
+        }
+        #notification.show { opacity: 1; transform: translateX(-50%) translateY(-20px); }
